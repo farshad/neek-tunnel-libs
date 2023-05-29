@@ -44,13 +44,13 @@ func OpenTunnel(sshAddress *C.char, socks5Address *C.char, user *C.char, passwor
 
 	go func() {
 		fmt.Println("start server")
-		conf := &socks5.Config{
+		socksConf := &socks5.Config{
 			Dial: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return sshConn.Dial(network, addr)
 			},
 		}
 
-		serverSocks, err := socks5.New(conf)
+		serverSocks, err := socks5.New(socksConf)
 		if err != nil {
 			fmt.Println(err)
 			message = err.Error()
