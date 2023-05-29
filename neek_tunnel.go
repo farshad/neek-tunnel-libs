@@ -29,6 +29,7 @@ func OpenTunnel(sshAddress *C.char, socks5Address *C.char, user *C.char, passwor
 		User:            C.GoString(user),
 		Auth:            []ssh.AuthMethod{ssh.Password(C.GoString(password))},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         30,
 	}
 
 	var err error
