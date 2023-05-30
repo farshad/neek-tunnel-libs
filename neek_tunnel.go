@@ -5,9 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/armon/go-socks5"
+	"github.com/things-go/go-socks5"
 	"golang.org/x/crypto/ssh"
+	"log"
 	"net"
+	"os"
+	"time"
 )
 
 type TunnelResponse struct {
@@ -29,7 +32,7 @@ func OpenTunnel(sshAddress *C.char, socks5Address *C.char, user *C.char, passwor
 		User:            C.GoString(user),
 		Auth:            []ssh.AuthMethod{ssh.Password(C.GoString(password))},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		Timeout:         30,
+		Timeout:         60 * time.Second,
 	}
 
 	var err error
@@ -44,24 +47,18 @@ func OpenTunnel(sshAddress *C.char, socks5Address *C.char, user *C.char, passwor
 	fmt.Println("connected to ssh server")
 
 	go func() {
-		fmt.Println("start server")
-		socksConf := &socks5.Config{
-			Dial: func(ctx context.Context, network, addr string) (net.Conn, error) {
+		fmt.Println("start server: " + C.GoString(socks5Address))
+
+		server := socks5.NewServer(
+			socks5.WithDial(func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return sshConn.Dial(network, addr)
-			},
-		}
+			}),
+			socks5.WithLogger(socks5.NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags))),
+		)
 
-		serverSocks, err := socks5.New(socksConf)
-		if err != nil {
+		// Create SOCKS5 proxy on localhost port 7201
+		if err := server.ListenAndServe("tcp", C.GoString(socks5Address)); err != nil {
 			fmt.Println(err)
-			message = err.Error()
-			isSuccess = false
-		}
-
-		if err := serverSocks.ListenAndServe("tcp", C.GoString(socks5Address)); err != nil {
-			fmt.Println("failed to create socks5 server", err)
-			message = err.Error()
-			isSuccess = false
 		}
 	}()
 
